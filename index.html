@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+		<title>Wyse</title>
+		<link rel="stylesheet" href="css/normalize.css">
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="css/main.css">
+	</head>
+	<body>
+		<div class="sandbox_wrapper">
+			<div id="sandbox"></div>
+			<div id="marquee"></div>
+			<div id="element_outlines"></div>
+		</div>
+		<div id="tools">
+			<ul>
+				<li>
+					<button>DIV</button>
+				</li>
+			</ul>
+		</div>
+		<div id="editor">
+			<button class="clone">Clone Element</button>
+			<textarea></textarea>
+			<button class="update_css">Update CSS</button>
+		</div>
+
+		<script src="js/lib/jquery-2.0.3.min.js"></script>
+		<script src="js/lib/jquery-ui-1.10.3.custom.min.js"></script>
+		<script src="js/lib/keypress.js"></script>
+
+		<script src="js/wyse.js"></script>
+		<script src="js/marquee_selection.js"></script>
+		<script src="js/element_movement.js"></script>
+		<script src="js/element_resize.js"></script>
+		<script src="js/element_isolation.js"></script>
+		<script src="js/css_validation.js"></script>
+		<script src="js/main.js"></script>
+	</body>
+</html>

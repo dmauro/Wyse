@@ -1,0 +1,22 @@
+/*
+    These files get checked fstat'd manually. Don't add other imports.
+    Any scss imports should simply be added in the compress list, and
+    any variables just for this can be added at the top. If there are
+    site-wide variables or mixins needed, they should just go in either
+    of these two files below.
+*/
+@import "vars", "mixins";
+
+* {
+    @include box-sizing(border-box);
+}
+
+p {
+    margin:0;
+}
+
+ul {
+    margin:0;
+    padding:0;
+    list-style-type:none;
+}
