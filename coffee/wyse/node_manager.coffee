@@ -10,12 +10,18 @@ class wyse.NodeManager
                 return node if node.id is node_id
         @sandbox.update_scope_handler = (node) =>
             @node_scope = node
-        @sandbox.node_selected_handler = (node) =>
-            # If it is the only node selected, deselect it
-            # otherwise, make it the only node selected
-            selected_nodes = []
-            if node and not (node in @selected_nodes and @selected_nodes.length is 1)
-                selected_nodes = [node]
+        @sandbox.nodes_selected_handler = (node_array, shift_key=false) =>
+            selected_nodes = node_array
+            # If we only have one node, and it is already
+            # selected, then deselect it
+            if node_array?.length is 1 and @selected_nodes.length is 1 and node_array[0] in @selected_nodes
+                selected_nodes = null
+            # Or if we're shift selecting and multiple things are
+            # selected, deselect this item
+            else if shift_key and node_array?.length is 1 and @selected_nodes.length > 1 and node_array[0] in @selected_nodes
+                selected_nodes = []
+                for node in @selected_nodes
+                    selected_nodes.push(node) unless node is node_array[0]
             @set_selected_nodes selected_nodes
 
         @layers = new wyse.Layers "layers"
@@ -84,7 +90,8 @@ class wyse.NodeManager
         # We need to deal with nodes getting shuffled around
 
     set_selected_nodes: (node_array) ->
-        @selected_nodes = node_array
+        console.log "Setting selected", node_array
+        @selected_nodes = node_array or []
         @sandbox.set_selected_nodes node_array
         @layers.set_selected_nodes node_array
         @property_editor.set_selected_nodes node_array

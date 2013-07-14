@@ -12,7 +12,7 @@ class wyse.Sandbox
         @hovered_node = null
         @get_node_from_id_handler = ->
         @update_scope_handler = ->
-        @node_selected_handler = ->
+        @nodes_selected_handler = ->
 
     add_node: (node) ->
         node.element = crel node.tag, { class : "sandbox_node_#{node.id}" }
@@ -115,10 +115,22 @@ class wyse.Sandbox
     create_outline: (class_name) ->
         return crel 'div', { class : "outline #{class_name}" }, crel 'div'
 
+    set_marqueed_nodes: (node_array) ->
+        # Remove all others
+        $(@element_outlines).find(".under_marquee").remove()
+        # Create new selection outlines
+        return unless node_array
+        for node in node_array
+            outline = @create_outline "under_marquee"
+            style = @get_layout_string_for_node node, true
+            outline.style.cssText = style
+            @element_outlines.appendChild outline
+
     set_selected_nodes: (node_array) ->
         # Remove all other selection
         $(@element_outlines).find(".selected").remove()
         # Create new selection outlines
+        return unless node_array
         for node in node_array
             outline = @create_outline "resizable selected"
             style = @get_layout_string_for_node node, true
@@ -140,9 +152,6 @@ class wyse.Sandbox
         class_name_array = class_name.split "_"
         id = parseInt class_name_array[class_name_array.length - 1], 10
         return id
-
-    select_node: (node) ->
-        @node_selected_handler node
 
     bind: ->
         $element = $(@element)
@@ -168,13 +177,13 @@ class wyse.Sandbox
                 start_y = event.pageY
 
             $element.mouseup =>
-                console.log "mouseup"
                 diff_x = Math.abs event.pageX - start_x
                 diff_y = Math.abs event.pageY - start_y
                 if diff_x < click_threshold and diff_y < click_threshold
                     id = @get_node_id_from_class_name event.target.className
                     target_node = @get_node_from_id_handler id
-                    @select_node target_node
+                    target_node_array = if target_node then [target_node] else null
+                    @nodes_selected_handler target_node_array, event.shiftKey
 
         # Hover outlines
         do =>
@@ -191,14 +200,25 @@ class wyse.Sandbox
                 id = @get_node_id_from_class_name event.target.className
                 hovered_node = @get_node_from_id_handler id
                 @set_hovered_node hovered_node
+            $element.mouseout =>
+                @set_hovered_node null
 
         # Marquee
         do =>
             offset = $element.offset()
             x1 = 0
             y1 = 0
+            x2 = 0
+            y2 = 0
+            marquee_is_drawn = false
 
-            get_elements_under_rectangle = (x1, y1, x2, y2) =>
+            get_nodes_under_rectangle = (x1, y1, x2, y2) =>
+                # Invert rectangle if needed
+                if x1 > x2
+                    x2=x1+(x1=x2)-x2
+                if y1 > y2
+                    y2=y1+(y1=y2)-y2
+
                 root = if @isolated_node then @isolation_sandbox_element else @sandbox_element
                 overlapped = []
                 for element in root.childNodes
@@ -207,14 +227,16 @@ class wyse.Sandbox
                     ey1 = layout.top - offset.top
                     ex2 = ex1 + layout.width
                     ey2 = ey1 + layout.height
-                    console.log ex1, ey1, ex2, ey2
-                    console.log x1, y1, x2, y2
-                    overlapped.push(element) if (x1 < ex2 and x2 > ex1 and y1 < ey2 and y2 > ey1)
-                console.log "overlapped:", overlapped.length
+                    if (x1 < ex2 and x2 > ex1 and y1 < ey2 and y2 > ey1)
+                        # Get the node
+                        id = @get_node_id_from_class_name element.className
+                        node = @get_node_from_id_handler id
+                        overlapped.push node
+                return overlapped
 
             draw_marquee_handler = =>
+                marquee_is_drawn = true
                 # Deselect all
-                @node_selected_handler null
                 x2 = event.pageX - offset.left
                 y2 = event.pageY - offset.top
 
@@ -235,9 +257,8 @@ class wyse.Sandbox
 
                 @marquee.style.cssText = style
 
-                get_elements_under_rectangle x1, y1, x2, y2
-
-                # FIXME: Preview which ones will be selected
+                marqueed_nodes = get_nodes_under_rectangle x1, y1, x2, y2
+                @set_marqueed_nodes marqueed_nodes
 
             $element.mousedown =>
                 # Make sure we haven't clicked on a node
@@ -247,11 +268,14 @@ class wyse.Sandbox
                 $(window).on "mousemove", draw_marquee_handler
 
             $(window).mouseup =>
-                
-                # FIXME: Select from marquee here
-
                 $(window).off "mousemove", draw_marquee_handler
+                return unless marquee_is_drawn
+
+                marquee_is_drawn = false
+                selected_nodes = get_nodes_under_rectangle x1, y1, x2, y2
+                @nodes_selected_handler selected_nodes
                 @marquee.style.display = "none"
+                @set_marqueed_nodes null
 
 
 
