@@ -22,6 +22,15 @@ class wyse.NodeManager
                 selected_nodes = []
                 for node in @selected_nodes
                     selected_nodes.push(node) unless node is node_array[0]
+            # Or if we're shift selecting and this thing isn't
+            # already selected, add it to the selection
+            else if shift_key and node_array?.length is 1 and node_array[0] not in @selected_nodes
+                for node in @selected_nodes
+                    selected_nodes.push node
+            # If we would normally deselect but are pressing shift,
+            # don't change selection
+            else if shift_key and node_array is null
+                return
             @set_selected_nodes selected_nodes
 
         @layers = new wyse.Layers "layers"
@@ -90,7 +99,6 @@ class wyse.NodeManager
         # We need to deal with nodes getting shuffled around
 
     set_selected_nodes: (node_array) ->
-        console.log "Setting selected", node_array
         @selected_nodes = node_array or []
         @sandbox.set_selected_nodes node_array
         @layers.set_selected_nodes node_array

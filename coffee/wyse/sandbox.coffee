@@ -221,7 +221,7 @@ class wyse.Sandbox
 
                 root = if @isolated_node then @isolation_sandbox_element else @sandbox_element
                 overlapped = []
-                for element in root.childNodes
+                check_node_recursively = (element) =>
                     layout = @get_layout_for_element element, true
                     ex1 = layout.left - offset.left
                     ey1 = layout.top - offset.top
@@ -232,6 +232,12 @@ class wyse.Sandbox
                         id = @get_node_id_from_class_name element.className
                         node = @get_node_from_id_handler id
                         overlapped.push node
+                    for child in element.childNodes
+                        check_node_recursively child
+
+                for child in root.childNodes
+                    check_node_recursively child
+                    
                 return overlapped
 
             draw_marquee_handler = =>
