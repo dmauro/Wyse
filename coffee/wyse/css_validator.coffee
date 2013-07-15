@@ -37,6 +37,8 @@ _re_named_color = _re_named_color.slice 0, -1
 _re_named_color += ')'
 _color_names = null
 
+console.log "RENAMED COLOR", window.named_color = _re_named_color
+
 #_re_positive_int = '\\d+'
 #_re_int = '-?' + _re_positive_int
 #_re_percentage = '\\d+%'
@@ -270,6 +272,6 @@ class wyse.CSSValidator
         if typeof test is "function"
             return test(value)
         else
-            return true if new RegExp(test).test value
+            return true if new RegExp(test, "i").test value
         console.log "Value \"#{value}\" is not valid for property \"#{property}\""
         return false
