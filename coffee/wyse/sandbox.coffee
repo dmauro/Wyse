@@ -13,6 +13,7 @@ class wyse.Sandbox
         @get_node_from_id_handler = ->
         @update_scope_handler = ->
         @nodes_selected_handler = ->
+        @request_nodes_reselected_handler = ->
 
     add_node: (node) ->
         node.element = crel node.tag, { class : "sandbox_node_#{node.id}" }
@@ -23,6 +24,9 @@ class wyse.Sandbox
         # We need to update the isolation layer as well
         if node.parent? and node.parent is @isolated_node
             @clone_isolated_node node.parent
+
+        # We need to update the outlines
+        @request_nodes_reselected_handler()
 
     remove_node: (node) ->
         # Update the isolation layer also
@@ -39,24 +43,45 @@ class wyse.Sandbox
             style += "#{property}:#{value};"
         return style
 
-    get_layout_for_element: (element, force_border_box=false) ->
+    get_layout_for_element: (element, is_outline=false) ->
         # Layout returned as:
         # { width:px, height:px, left:px, top:px }
         $element = $(element)
+        outline_border = 1 #px
+
         offset = $element.offset()
         top_adjust = 0
         left_adjust = 0
-        unless force_border_box #FIXME: So selection is drawn properly
-            top_adjust = parseInt $element.css('border-top-width'), 10
-            left_adjust = parseInt $element.css('border-left-width'), 10
-        top = offset.top - top_adjust
-        left = offset.left - left_adjust
-        if $element.css("box-sizing") is "content-box" and not force_border_box
+        unless is_outline or $element.css("position") in ["absolute", "fixed"]
+            top_adjust -= parseInt $element.css('margin-top'), 10
+            left_adjust -= parseInt $element.css('margin-left'), 10
+            # I'm not sure why this is needed.. curious...
+            top_adjust -= 1
+            left_adjust -= 1
+        if is_outline
+            # Adjust for the outline's own border
+            left_adjust -= outline_border
+            top_adjust -= outline_border
+        left = offset.left + left_adjust + @element.scrollLeft
+        top = offset.top + top_adjust + @element.scrollTop
+
+        if $element.css("box-sizing") is "content-box" and not is_outline
             width = $element.width()
             height = $element.height()
-        else if $element.css("box-sizing") in ["border-box", "padding-box"] or force_border_box
+        else if $element.css("box-sizing") is "padding-box" and not is_outline
+            width = $element.outerWidth()
+            width -= parseInt $element.css('border-left-width'), 10
+            width -= parseInt $element.css('border-right-width'), 10
+            height = $element.outerHeight()
+            height -= parseInt $element.css('border-top-width'), 10
+            height -= parseInt $element.css('border-bottom-width'), 10
+        else if $element.css("box-sizing") is "border-box" or is_outline
             width = $element.outerWidth()
             height = $element.outerHeight()
+        if is_outline
+            width -= outline_border * 2
+            height -= outline_border *2
+
         return {
             width   : width
             height  : height
@@ -64,8 +89,8 @@ class wyse.Sandbox
             top     : top
         }
 
-    get_layout_string_for_node: (node, force_border_box=false) ->
-        layout = @get_layout_for_element node.element, force_border_box
+    get_layout_string_for_node: (node, is_outline=false) ->
+        layout = @get_layout_for_element node.element, is_outline
         style = "position:absolute;"
         style += "width:#{layout.width}px;"
         style += "height:#{layout.height}px;"
@@ -112,8 +137,11 @@ class wyse.Sandbox
                 style = @update_style_with_node_layout style, node
             element.style.cssText = style
 
-    create_outline: (class_name) ->
-        return crel 'div', { class : "outline #{class_name}" }, crel 'div'
+        # Update selection outlines
+        @request_nodes_reselected_handler()
+
+    create_outline: (class_name, id) ->
+        return crel 'div', { class : "outline #{class_name}", "data-id" : id }, crel 'div'
 
     set_marqueed_nodes: (node_array) ->
         # Remove all others
@@ -121,7 +149,7 @@ class wyse.Sandbox
         # Create new selection outlines
         return unless node_array
         for node in node_array
-            outline = @create_outline "under_marquee"
+            outline = @create_outline "under_marquee", node.id
             style = @get_layout_string_for_node node, true
             outline.style.cssText = style
             @element_outlines.appendChild outline
@@ -132,7 +160,7 @@ class wyse.Sandbox
         # Create new selection outlines
         return unless node_array
         for node in node_array
-            outline = @create_outline "resizable selected"
+            outline = @create_outline "resizable selected", node.id
             style = @get_layout_string_for_node node, true
             outline.style.cssText = style
             @element_outlines.appendChild outline
@@ -143,7 +171,7 @@ class wyse.Sandbox
         # Remove other hovers
         $(@element_outlines).find(".hovering").remove()
         if node
-            outline = @create_outline "resizable hovering"
+            outline = @create_outline "resizable hovering", node.id
             style = @get_layout_string_for_node node, true
             outline.style.cssText = style
             @element_outlines.appendChild outline
@@ -151,6 +179,7 @@ class wyse.Sandbox
     get_node_id_from_class_name: (class_name) ->
         class_name_array = class_name.split "_"
         id = parseInt class_name_array[class_name_array.length - 1], 10
+        id = null if isNaN id
         return id
 
     bind: ->
@@ -198,13 +227,19 @@ class wyse.Sandbox
             $element.mousemove =>
                 return if mouse_is_down
                 id = @get_node_id_from_class_name event.target.className
+                unless id?
+                    # If we're hovering the hover outline, pass it on to the node
+                    id = parseInt event.target.parentNode.getAttribute("data-id"), 10
                 hovered_node = @get_node_from_id_handler id
                 @set_hovered_node hovered_node
+
             $element.mouseout =>
+                return unless event.target is @element
                 @set_hovered_node null
 
         # Marquee
         do =>
+            $sandbox = $(@sandbox_element)
             offset = $element.offset()
             x1 = 0
             y1 = 0
@@ -237,18 +272,18 @@ class wyse.Sandbox
 
                 for child in root.childNodes
                     check_node_recursively child
-                    
+
                 return overlapped
 
             draw_marquee_handler = =>
                 marquee_is_drawn = true
                 # Deselect all
-                x2 = event.pageX - offset.left
-                y2 = event.pageY - offset.top
+                x2 = event.pageX - offset.left + @element.scrollLeft
+                y2 = event.pageY - offset.top + @element.scrollTop
 
-                # Draw marquee constrained to width/height
-                x2 = Math.min(Math.max(0, x2), @width)
-                y2 = Math.min(Math.max(0, y2), @height)
+                # Draw marquee constrained to width/height (minus size with border)
+                x2 = Math.min(Math.max(0, x2), $sandbox.width() - 2)
+                y2 = Math.min(Math.max(0, y2), $sandbox.height() - 2)
 
                 left = if x2 > x1 then x1 else x2
                 top = if y2 > y1 then y1 else y2
@@ -269,8 +304,9 @@ class wyse.Sandbox
             $element.mousedown =>
                 # Make sure we haven't clicked on a node
                 return unless event.target.className.indexOf("sandbox_node_") is -1
-                x1 = event.pageX - offset.left
-                y1 = event.pageY - offset.top
+                return if event.target.parentNode.getAttribute("data-id")?
+                x1 = event.pageX - offset.left + @element.scrollLeft
+                y1 = event.pageY - offset.top + @element.scrollTop
                 $(window).on "mousemove", draw_marquee_handler
 
             $(window).mouseup =>
@@ -279,7 +315,7 @@ class wyse.Sandbox
 
                 marquee_is_drawn = false
                 selected_nodes = get_nodes_under_rectangle x1, y1, x2, y2
-                @nodes_selected_handler selected_nodes
+                @nodes_selected_handler selected_nodes, event.shiftKey
                 @marquee.style.display = "none"
                 @set_marqueed_nodes null
 

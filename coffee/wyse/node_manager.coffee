@@ -24,28 +24,34 @@ class wyse.NodeManager
                     selected_nodes.push(node) unless node is node_array[0]
             # Or if we're shift selecting and this thing isn't
             # already selected, add it to the selection
-            else if shift_key and node_array?.length is 1 and node_array[0] not in @selected_nodes
+            else if shift_key and node_array?.length
                 for node in @selected_nodes
-                    selected_nodes.push node
+                    selected_nodes.push(node) unless node in selected_nodes
             # If we would normally deselect but are pressing shift,
             # don't change selection
             else if shift_key and node_array is null
                 return
             @set_selected_nodes selected_nodes
+        @sandbox.request_nodes_reselected_handler = =>
+            @sandbox.set_selected_nodes @selected_nodes
 
         @layers = new wyse.Layers "layers"
 
         @property_editor = new wyse.PropertyEditor "property_editor"
         @property_editor.node_style_updated_handler = (styles) =>
-            node = null # Should be selected node
-            if node
+            return unless @selected_nodes.length
+            for node in @selected_nodes
                 @update_node_style node, styles
+        @property_editor.validate_css_pair_handler = (property, value) =>
+            return @css_validator.validate_pair property, value
 
         @toolbar = new wyse.Toolbar "toolbar"
         @toolbar.create_node_handler = (tag) =>
             @create_node tag
         @toolbar.remove_node_handler = =>
             @remove_selected_nodes()
+
+        @css_validator = new wyse.CSSValidator()
 
         @element = crel 'div', { id : @id_name },
             @sandbox.element,
@@ -56,9 +62,10 @@ class wyse.NodeManager
     bind: ->
         @sandbox.bind()
         @toolbar.bind()
+        @property_editor.bind()
 
-    update_node_style = (node, styles) ->
-        node.styles = styles
+    update_node_style: (node, styles) ->
+        node.update_styles styles
         @sandbox.update_styling_for_node node
 
     tag_can_go_in_node: (tag, node) ->
@@ -72,7 +79,9 @@ class wyse.NodeManager
         parent = @node_scope
         # Make sure we this type of node can go inside this one
         if not parent? or @tag_can_go_in_node tag, node
-            default_styles = wyse.default_styles[tag] or {}
+            default_styles = {}
+            if wyse.default_styles[tag]?
+                $.extend default_styles, wyse.default_styles[tag]
             node = new wyse.Node tag, parent, default_styles
             @add_node node
 

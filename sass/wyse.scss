@@ -3,14 +3,31 @@
 #sandbox {
     position:relative;
     border:1px solid green;
-    overflow:hidden;
+    overflow:auto;
     @include text-selection(none);
+
+    .default_sandbox,
+    .isolation_sandbox {
+        position:absolute;
+        min-width:100%;
+        min-height:100%;
+        left:0;
+        top:0;
+    }
+
+    .isolation_sandbox {
+        pointer-events:none;
+    }
 
     &.isolated {
         /* Isolation mode activated */
         .default_sandbox {
             opacity:0.3;
             pointer-events:none;
+        }
+
+        .isolation_sandbox {
+            pointer-events:all;
         }
     }
 
@@ -24,6 +41,11 @@
     }
 
     .element_outlines {
+        position:absolute;
+        width:100%;
+        height:100%;
+        left:0;
+        top:0;
         pointer-events:none;
 
         .outline {
@@ -78,23 +100,23 @@
                 }
 
                 &:before {
-                    left:-4px;
-                    top:-4px;
+                    left:-5px;
+                    top:-5px;
                     cursor:nw-resize;
                 }
                 &:after {
-                    right:-4px;
-                    top:-4px;
+                    right:-5px;
+                    top:-5px;
                     cursor:ne-resize;
                 }
                 > div:before {
-                    left:-4px;
-                    bottom:-4px;
+                    left:-5px;
+                    bottom:-5px;
                     cursor:sw-resize;
                 }
                 > div:after {
-                    right:-4px;
-                    bottom:-4px;
+                    right:-5px;
+                    bottom:-5px;
                     cursor:se-resize;
                 }
             }

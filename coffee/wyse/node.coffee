@@ -9,6 +9,10 @@ class wyse.Node
         @id = get_id()
         @children = []
 
+    update_styles: (styles) ->
+        for property, value of styles
+            @styles[property] = value
+
     add_child: (node) ->
         @children.push node
 
